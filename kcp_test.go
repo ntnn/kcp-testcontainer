@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"testing"
 
+	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	"github.com/stretchr/testify/require"
 	tc "github.com/testcontainers/testcontainers-go"
 	"gopkg.in/yaml.v3"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type kubeConfig struct {
@@ -61,7 +63,7 @@ func TestRun(t *testing.T) {
 	t.Run("root workspace reachable with admin token", func(t *testing.T) {
 		t.Parallel()
 
-		client := &http.Client{
+		httpClient := &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 			},
@@ -71,12 +73,27 @@ func TestRun(t *testing.T) {
 		require.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+config.Users[0].User.Token)
 
-		resp, err := client.Do(req)
+		resp, err := httpClient.Do(req)
 		require.NoError(t, err)
 		defer resp.Body.Close()
 		body, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode, string(body))
 		require.Contains(t, string(body), "WorkspaceList", "expected a WorkspaceList response")
+	})
+
+	t.Run("create nested workspace and get client by path", func(t *testing.T) {
+		t.Parallel()
+
+		require.NoError(t, container.CreateWorkspace(ctx, "root:my-org:team"))
+		require.NoError(t, container.CreateWorkspace(ctx, "root:my-org:team"))
+
+		cl, err := container.Client(ctx, "root:my-org", client.Options{})
+		require.NoError(t, err)
+
+		workspaces := &tenancyv1alpha1.WorkspaceList{}
+		require.NoError(t, cl.List(ctx, workspaces))
+		require.Len(t, workspaces.Items, 1)
+		require.Equal(t, "team", workspaces.Items[0].Name)
 	})
 }
