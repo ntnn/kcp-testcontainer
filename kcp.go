@@ -154,6 +154,26 @@ func (kcp *Container) CreateWorkspace(ctx context.Context, path string) error {
 	return nil
 }
 
+// CreateWorkspaceGenerateName creates a workspace in parent using prefix as GenerateName.
+// The parent must exist. The full path is returned.
+func (kcp *Container) CreateWorkspaceGenerateName(ctx context.Context, parent, prefix string) (string, error) {
+	cl, err := kcp.Client(ctx, parent, client.Options{})
+	if err != nil {
+		return "", err
+	}
+
+	workspace := &tenancyv1alpha1.Workspace{}
+	workspace.SetGenerateName(prefix)
+	if err := cl.Create(ctx, workspace); err != nil {
+		return "", fmt.Errorf("creating workspace with generate name %q in %q: %w", prefix, parent, err)
+	}
+
+	if err := waitReady(ctx, cl, workspace.Name); err != nil {
+		return "", fmt.Errorf("workspace %q in %q: %w", workspace.Name, parent, err)
+	}
+	return parent + ":" + workspace.Name, nil
+}
+
 func (kcp *Container) createChildWorkspace(ctx context.Context, parent, name string) error {
 	cl, err := kcp.Client(ctx, parent, client.Options{})
 	if err != nil {
@@ -166,6 +186,10 @@ func (kcp *Container) createChildWorkspace(ctx context.Context, parent, name str
 		return fmt.Errorf("creating workspace object: %w", err)
 	}
 
+	return waitReady(ctx, cl, name)
+}
+
+func waitReady(ctx context.Context, cl client.Client, name string) error {
 	if err := wait.PollUntilContextTimeout(ctx, 100*time.Millisecond, time.Minute, true,
 		func(ctx context.Context) (bool, error) {
 			current := &tenancyv1alpha1.Workspace{}

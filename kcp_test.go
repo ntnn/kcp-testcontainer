@@ -96,4 +96,16 @@ func TestRun(t *testing.T) {
 		require.Len(t, workspaces.Items, 1)
 		require.Equal(t, "team", workspaces.Items[0].Name)
 	})
+
+	t.Run("create workspace with generate name", func(t *testing.T) {
+		t.Parallel()
+
+		path, err := container.CreateWorkspaceGenerateName(ctx, "root", "gen-")
+		require.NoError(t, err)
+		require.Regexp(t, `^root:gen-.+`, path)
+
+		cl, err := container.Client(ctx, path, client.Options{})
+		require.NoError(t, err)
+		require.NoError(t, cl.List(ctx, &tenancyv1alpha1.WorkspaceList{}), "generated workspace must be usable by returned path")
+	})
 }
