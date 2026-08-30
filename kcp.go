@@ -150,8 +150,10 @@ func (kcp *Container) CreateWorkspace(ctx context.Context, path string) error {
 // Missing parents are created.
 // The full path is returned.
 func (kcp *Container) CreateWorkspaceGenerateName(ctx context.Context, parent, prefix string) (string, error) {
-	if err := kcp.CreateWorkspace(ctx, parent); err != nil {
-		return "", err
+	if strings.Contains(parent, ":") {
+		if err := kcp.CreateWorkspace(ctx, parent); err != nil {
+			return "", err
+		}
 	}
 
 	cl, err := kcp.Client(ctx, parent, client.Options{})
