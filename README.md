@@ -19,6 +19,15 @@ import kcp "github.com/ntnn/kcp-testcontainer"
 
 kcpc, err := kcp.Run(ctx, "ghcr.io/kcp-dev/kcp:latest")
 
+// Add kcp's tenancyv1alpha1 to the client-go scheme or the scheme you pass
+import (
+	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
+)
+
+utilruntime.Must(tenancyv1alpha1.AddToScheme(scheme.Scheme))
+
 // create workspaces (parents included)
 err = kcpc.CreateWorkspace(ctx, "root:my:workspace")
 // create workspace with generated names (parents included)

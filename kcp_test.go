@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	tc "github.com/testcontainers/testcontainers-go"
 	"gopkg.in/yaml.v3"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -33,6 +35,10 @@ type namedUser struct {
 
 type user struct {
 	Token string `yaml:"token"`
+}
+
+func init() {
+	utilruntime.Must(tenancyv1alpha1.AddToScheme(scheme.Scheme))
 }
 
 func TestRun(t *testing.T) {

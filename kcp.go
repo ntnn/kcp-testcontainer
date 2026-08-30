@@ -15,7 +15,6 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	tcwait "github.com/testcontainers/testcontainers-go/wait"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -119,13 +118,6 @@ func (kcp *Container) Client(ctx context.Context, path string, opts client.Optio
 	config, err := kcp.RESTConfig(ctx, path)
 	if err != nil {
 		return nil, err
-	}
-
-	if opts.Scheme == nil {
-		opts.Scheme = runtime.NewScheme()
-	}
-	if err := tenancyv1alpha1.AddToScheme(opts.Scheme); err != nil {
-		return nil, fmt.Errorf("adding tenancy types to scheme: %w", err)
 	}
 
 	cl, err := client.New(config, opts)
