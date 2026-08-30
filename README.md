@@ -21,10 +21,12 @@ kcpc, err := kcp.Run(ctx, "ghcr.io/kcp-dev/kcp:latest")
 
 // create workspaces (parents included)
 err = kcpc.CreateWorkspace(ctx, "root:my:workspace")
+// create workspace with generated names (parents included)
 path, err := kcpc.CreateWorkspaceGenerateName(ctx, "root", "test-")
 
-// access a workspace
+// rest.Config for a workspace
 cfg, err := kcpc.RESTConfig(ctx, "root:my:workspace")
+// controller-runtime client for a workspace
 cl, err := kcpc.Client(ctx, "root:my:workspace", client.Options{})
 ```
 

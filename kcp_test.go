@@ -100,9 +100,9 @@ func TestRun(t *testing.T) {
 	t.Run("create workspace with generate name", func(t *testing.T) {
 		t.Parallel()
 
-		path, err := container.CreateWorkspaceGenerateName(ctx, "root", "gen-")
+		path, err := container.CreateWorkspaceGenerateName(ctx, "root:with:parents", "gen-")
 		require.NoError(t, err)
-		require.Regexp(t, `^root:gen-.+`, path)
+		require.Regexp(t, `^root:with:parents:gen-.+`, path)
 
 		cl, err := container.Client(ctx, path, client.Options{})
 		require.NoError(t, err)

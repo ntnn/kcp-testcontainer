@@ -155,8 +155,13 @@ func (kcp *Container) CreateWorkspace(ctx context.Context, path string) error {
 }
 
 // CreateWorkspaceGenerateName creates a workspace in parent using prefix as GenerateName.
-// The parent must exist. The full path is returned.
+// Missing parents are created.
+// The full path is returned.
 func (kcp *Container) CreateWorkspaceGenerateName(ctx context.Context, parent, prefix string) (string, error) {
+	if err := kcp.CreateWorkspace(ctx, parent); err != nil {
+		return "", err
+	}
+
 	cl, err := kcp.Client(ctx, parent, client.Options{})
 	if err != nil {
 		return "", err
