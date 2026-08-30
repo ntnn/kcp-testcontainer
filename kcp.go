@@ -15,6 +15,8 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	tcwait "github.com/testcontainers/testcontainers-go/wait"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -32,6 +34,14 @@ const (
 // Container is a running kcp server.
 type Container struct {
 	testcontainers.Container
+}
+
+// Small helper only used internally to constructo ctrl-runtime clients
+// with the kcp tenancy API in the scheme to create workspaces.
+func tenancyScheme() *runtime.Scheme {
+	s := runtime.NewScheme()
+	utilruntime.Must(tenancyv1alpha1.AddToScheme(s))
+	return s
 }
 
 // Run starts a kcp container from img (e.g. "ghcr.io/kcp-dev/kcp:latest").
@@ -156,7 +166,7 @@ func (kcp *Container) CreateWorkspaceGenerateName(ctx context.Context, parent, p
 		}
 	}
 
-	cl, err := kcp.Client(ctx, parent, client.Options{})
+	cl, err := kcp.Client(ctx, parent, client.Options{Scheme: tenancyScheme()})
 	if err != nil {
 		return "", err
 	}
@@ -174,7 +184,7 @@ func (kcp *Container) CreateWorkspaceGenerateName(ctx context.Context, parent, p
 }
 
 func (kcp *Container) createChildWorkspace(ctx context.Context, parent, name string) error {
-	cl, err := kcp.Client(ctx, parent, client.Options{})
+	cl, err := kcp.Client(ctx, parent, client.Options{Scheme: tenancyScheme()})
 	if err != nil {
 		return err
 	}

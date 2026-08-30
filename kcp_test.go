@@ -10,8 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	tc "github.com/testcontainers/testcontainers-go"
 	"gopkg.in/yaml.v3"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -35,10 +33,6 @@ type namedUser struct {
 
 type user struct {
 	Token string `yaml:"token"`
-}
-
-func init() {
-	utilruntime.Must(tenancyv1alpha1.AddToScheme(scheme.Scheme))
 }
 
 func TestRun(t *testing.T) {
@@ -94,7 +88,7 @@ func TestRun(t *testing.T) {
 		require.NoError(t, container.CreateWorkspace(ctx, "root:my-org:team"))
 		require.NoError(t, container.CreateWorkspace(ctx, "root:my-org:team"))
 
-		cl, err := container.Client(ctx, "root:my-org", client.Options{})
+		cl, err := container.Client(ctx, "root:my-org", client.Options{Scheme: tenancyScheme()})
 		require.NoError(t, err)
 
 		workspaces := &tenancyv1alpha1.WorkspaceList{}
@@ -110,7 +104,7 @@ func TestRun(t *testing.T) {
 		require.NoError(t, err)
 		require.Regexp(t, `^root:gen-.+`, path)
 
-		cl, err := container.Client(ctx, path, client.Options{})
+		cl, err := container.Client(ctx, path, client.Options{Scheme: tenancyScheme()})
 		require.NoError(t, err)
 		require.NoError(t, cl.List(ctx, &tenancyv1alpha1.WorkspaceList{}), "generated workspace must be usable by returned path")
 	})
@@ -122,7 +116,7 @@ func TestRun(t *testing.T) {
 		require.NoError(t, err)
 		require.Regexp(t, `^root:with:parents:gen-.+`, path)
 
-		cl, err := container.Client(ctx, path, client.Options{})
+		cl, err := container.Client(ctx, path, client.Options{Scheme: tenancyScheme()})
 		require.NoError(t, err)
 		require.NoError(t, cl.List(ctx, &tenancyv1alpha1.WorkspaceList{}), "generated workspace must be usable by returned path")
 	})
