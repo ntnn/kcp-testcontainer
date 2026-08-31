@@ -35,11 +35,11 @@ type user struct {
 	Token string `yaml:"token"`
 }
 
-func TestRun(t *testing.T) {
+func TestSingle(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	container, err := Run(ctx, "ghcr.io/kcp-dev/kcp:latest")
+	container, err := Single(ctx, "ghcr.io/kcp-dev/kcp:latest")
 	require.NoError(t, err)
 	tc.CleanupContainer(t, container)
 

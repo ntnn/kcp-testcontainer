@@ -31,8 +31,8 @@ const (
 	externalHostname = "localhost"
 )
 
-// Container is a running kcp server.
-type Container struct {
+// SingleInstance is a running a single kcp root shard.
+type SingleInstance struct {
 	testcontainers.Container
 }
 
@@ -44,8 +44,8 @@ func tenancyScheme() *runtime.Scheme {
 	return s
 }
 
-// Run starts a kcp container from img (e.g. "ghcr.io/kcp-dev/kcp:latest").
-func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustomizer) (*Container, error) {
+// Single starts a single root-shard kcp container from img (e.g. "ghcr.io/kcp-dev/kcp:latest").
+func Single(ctx context.Context, img string, opts ...testcontainers.ContainerCustomizer) (*SingleInstance, error) {
 	req := testcontainers.ContainerRequest{
 		Image:        img,
 		ExposedPorts: []string{port},
@@ -74,12 +74,12 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 	if err != nil {
 		return nil, fmt.Errorf("starting kcp container: %w", err)
 	}
-	return &Container{Container: container}, nil
+	return &SingleInstance{Container: container}, nil
 }
 
 // Kubeconfig returns the admin kubeconfig.
 // The current context is the root workspace.
-func (kcp *Container) Kubeconfig(ctx context.Context) ([]byte, error) {
+func (kcp *SingleInstance) Kubeconfig(ctx context.Context) ([]byte, error) {
 	reader, err := kcp.CopyFileFromContainer(ctx, kubeconfigPath)
 	if err != nil {
 		return nil, fmt.Errorf("copying admin kubeconfig from container: %w", err)
@@ -107,7 +107,7 @@ func (kcp *Container) Kubeconfig(ctx context.Context) ([]byte, error) {
 }
 
 // RESTConfig returns an admin rest.Config for the workspace at path.
-func (kcp *Container) RESTConfig(ctx context.Context, path string) (*rest.Config, error) {
+func (kcp *SingleInstance) RESTConfig(ctx context.Context, path string) (*rest.Config, error) {
 	kubeconfig, err := kcp.Kubeconfig(ctx)
 	if err != nil {
 		return nil, err
@@ -124,7 +124,7 @@ func (kcp *Container) RESTConfig(ctx context.Context, path string) (*rest.Config
 }
 
 // Client returns a controller-runtime client for the workspace at path.
-func (kcp *Container) Client(ctx context.Context, path string, opts client.Options) (client.Client, error) {
+func (kcp *SingleInstance) Client(ctx context.Context, path string, opts client.Options) (client.Client, error) {
 	config, err := kcp.RESTConfig(ctx, path)
 	if err != nil {
 		return nil, err
@@ -138,7 +138,7 @@ func (kcp *Container) Client(ctx context.Context, path string, opts client.Optio
 }
 
 // CreateWorkspace creates the workspace at path, including missing parents.
-func (kcp *Container) CreateWorkspace(ctx context.Context, path string) error {
+func (kcp *SingleInstance) CreateWorkspace(ctx context.Context, path string) error {
 	segments := strings.Split(path, ":")
 	if segments[0] != "root" {
 		return fmt.Errorf("workspace path %q must start with root", path)
@@ -159,7 +159,7 @@ func (kcp *Container) CreateWorkspace(ctx context.Context, path string) error {
 // CreateWorkspaceGenerateName creates a workspace in parent using prefix as GenerateName.
 // Missing parents are created.
 // The full path is returned.
-func (kcp *Container) CreateWorkspaceGenerateName(ctx context.Context, parent, prefix string) (string, error) {
+func (kcp *SingleInstance) CreateWorkspaceGenerateName(ctx context.Context, parent, prefix string) (string, error) {
 	if strings.Contains(parent, ":") {
 		if err := kcp.CreateWorkspace(ctx, parent); err != nil {
 			return "", err
@@ -183,7 +183,7 @@ func (kcp *Container) CreateWorkspaceGenerateName(ctx context.Context, parent, p
 	return parent + ":" + workspace.Name, nil
 }
 
-func (kcp *Container) createChildWorkspace(ctx context.Context, parent, name string) error {
+func (kcp *SingleInstance) createChildWorkspace(ctx context.Context, parent, name string) error {
 	cl, err := kcp.Client(ctx, parent, client.Options{Scheme: tenancyScheme()})
 	if err != nil {
 		return err

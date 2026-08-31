@@ -29,7 +29,7 @@ func main() {
 	ctx := context.Background()
 
 	start := time.Now()
-	container, err := kcp.Run(ctx, img)
+	container, err := kcp.Single(ctx, img)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "kcp run:", err)
 		os.Exit(1)
