@@ -39,7 +39,7 @@ func TestSingle(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	container, err := Single(ctx, "ghcr.io/kcp-dev/kcp:latest")
+	container, err := Single(ctx, "")
 	require.NoError(t, err)
 	tc.CleanupContainer(t, container)
 

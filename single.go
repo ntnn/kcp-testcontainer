@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"strings"
 	"time"
 
@@ -25,11 +26,15 @@ import (
 
 const (
 	port           = "6443/tcp"
-	kubeconfigPath = "/data/.kcp/admin.kubeconfig"
+	rootDirectory  = "/.kcp"
+	kubeconfigPath = rootDirectory + "/admin.kubeconfig"
 	// externalHostname must be a SAN of the generated serving cert and match
 	// the host tests connect through; localhost covers the usual port mapping.
 	externalHostname = "localhost"
 )
+
+// DefaultImage is the image kcp-testcontainer uses when an empty string is passed.
+const DefaultImage = "ghcr.io/kcp-dev/kcp:v0.32.3"
 
 // SingleInstance is a running a single kcp root shard.
 type SingleInstance struct {
@@ -46,11 +51,15 @@ func tenancyScheme() *runtime.Scheme {
 
 // Single starts a single root-shard kcp container from img (e.g. "ghcr.io/kcp-dev/kcp:latest").
 func Single(ctx context.Context, img string, opts ...testcontainers.ContainerCustomizer) (*SingleInstance, error) {
+	if img == "" {
+		img = DefaultImage
+	}
 	req := testcontainers.ContainerRequest{
 		Image:        img,
 		ExposedPorts: []string{port},
 		Cmd: []string{
 			"start",
+			"--root-directory=" + rootDirectory,
 			"--bind-address=0.0.0.0",
 			"--external-hostname=" + externalHostname,
 		},
@@ -100,8 +109,23 @@ func (kcp *SingleInstance) Kubeconfig(ctx context.Context) ([]byte, error) {
 		return nil, fmt.Errorf("resolving mapped port: %w", err)
 	}
 
+	// the admin kubeconfig written in the container contains the
+	// container IP instead of the external hostname.
+	config, err := clientcmd.Load(raw)
+	if err != nil {
+		return nil, fmt.Errorf("parsing admin kubeconfig: %w", err)
+	}
+	cluster, ok := config.Clusters[config.Contexts[config.CurrentContext].Cluster]
+	if !ok {
+		return nil, fmt.Errorf("kubeconfig has no cluster for current context %q", config.CurrentContext)
+	}
+	server, err := url.Parse(cluster.Server)
+	if err != nil {
+		return nil, fmt.Errorf("parsing server URL %q: %w", cluster.Server, err)
+	}
+
 	rewritten := strings.ReplaceAll(string(raw),
-		"https://"+net.JoinHostPort(externalHostname, "6443"),
+		"https://"+server.Host,
 		"https://"+net.JoinHostPort(host, mapped.Port()))
 	return []byte(rewritten), nil
 }
