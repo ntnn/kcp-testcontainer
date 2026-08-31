@@ -49,7 +49,7 @@ func tenancyScheme() *runtime.Scheme {
 	return s
 }
 
-// Single starts a single root-shard kcp container from img (e.g. "ghcr.io/kcp-dev/kcp:latest").
+// Single starts a single root-shard kcp container.
 func Single(ctx context.Context, img string, opts ...testcontainers.ContainerCustomizer) (*SingleInstance, error) {
 	if img == "" {
 		img = DefaultImage
