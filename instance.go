@@ -14,6 +14,7 @@ import (
 	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	"github.com/testcontainers/testcontainers-go"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -107,65 +108,76 @@ func (in *instance) Client(ctx context.Context, path string, opts client.Options
 	return cl, nil
 }
 
+// WorkspaceOption mutates a workspace before creation.
+type WorkspaceOption func(ws *tenancyv1alpha1.Workspace)
+
+// WithLocation sets the location of the workspace.
+func WithLocation(w tenancyv1alpha1.WorkspaceLocation) WorkspaceOption {
+	return func(ws *tenancyv1alpha1.Workspace) {
+		ws.Spec.Location = &w
+	}
+}
+
+// WithShard schedules the workspace on the given shard.
+func WithShard(name string) WorkspaceOption {
+	return WithLocation(tenancyv1alpha1.WorkspaceLocation{Selector: &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"name": name,
+		},
+	}})
+}
+
 // CreateWorkspace creates the workspace at path, including missing parents.
-func (in *instance) CreateWorkspace(ctx context.Context, path string) error {
+// A path segment ending in "-" is used as a GenerateName prefix.
+// The full path with generated names is returned.
+// Options apply only to the last workspace in the path.
+func (in *instance) CreateWorkspace(ctx context.Context, path string, opts ...WorkspaceOption) (string, error) {
 	segments := strings.Split(path, ":")
 	if segments[0] != "root" {
-		return fmt.Errorf("workspace path %q must start with root", path)
+		return "", fmt.Errorf("workspace path %q must start with root", path)
 	}
 	if len(segments) < 2 {
-		return fmt.Errorf("workspace path %q names no workspace to create", path)
+		return "", fmt.Errorf("workspace path %q names no workspace to create", path)
 	}
 
 	for i := 1; i < len(segments); i++ {
 		parent := strings.Join(segments[:i], ":")
-		if err := in.createChildWorkspace(ctx, parent, segments[i]); err != nil {
-			return fmt.Errorf("creating workspace %q in %q: %w", segments[i], parent, err)
+		var segmentOpts []WorkspaceOption
+		if i == len(segments)-1 {
+			segmentOpts = opts
 		}
+		name, err := in.createChildWorkspace(ctx, parent, segments[i], segmentOpts...)
+		if err != nil {
+			return "", fmt.Errorf("creating workspace %q in %q: %w", segments[i], parent, err)
+		}
+		segments[i] = name
 	}
-	return nil
+	return strings.Join(segments, ":"), nil
 }
 
-// CreateWorkspaceGenerateName creates a workspace in parent using prefix as GenerateName.
-// Missing parents are created.
-// The full path is returned.
-func (in *instance) CreateWorkspaceGenerateName(ctx context.Context, parent, prefix string) (string, error) {
-	if strings.Contains(parent, ":") {
-		if err := in.CreateWorkspace(ctx, parent); err != nil {
-			return "", err
-		}
-	}
-
+func (in *instance) createChildWorkspace(ctx context.Context, parent, name string, opts ...WorkspaceOption) (string, error) {
 	cl, err := in.Client(ctx, parent, client.Options{Scheme: tenancyScheme()})
 	if err != nil {
 		return "", err
 	}
 
 	workspace := &tenancyv1alpha1.Workspace{}
-	workspace.SetGenerateName(prefix)
-	if err := cl.Create(ctx, workspace); err != nil {
-		return "", fmt.Errorf("creating workspace with generate name %q in %q: %w", prefix, parent, err)
+	if strings.HasSuffix(name, "-") {
+		workspace.SetGenerateName(name)
+	} else {
+		workspace.SetName(name)
+	}
+	for _, opt := range opts {
+		opt(workspace)
+	}
+	if err := cl.Create(ctx, workspace); err != nil && !apierrors.IsAlreadyExists(err) {
+		return "", fmt.Errorf("creating workspace object: %w", err)
 	}
 
 	if err := waitReady(ctx, cl, workspace.Name); err != nil {
-		return "", fmt.Errorf("workspace %q in %q: %w", workspace.Name, parent, err)
+		return "", err
 	}
-	return parent + ":" + workspace.Name, nil
-}
-
-func (in *instance) createChildWorkspace(ctx context.Context, parent, name string) error {
-	cl, err := in.Client(ctx, parent, client.Options{Scheme: tenancyScheme()})
-	if err != nil {
-		return err
-	}
-
-	workspace := &tenancyv1alpha1.Workspace{}
-	workspace.SetName(name)
-	if err := cl.Create(ctx, workspace); err != nil && !apierrors.IsAlreadyExists(err) {
-		return fmt.Errorf("creating workspace object: %w", err)
-	}
-
-	return waitReady(ctx, cl, name)
+	return workspace.Name, nil
 }
 
 func waitReady(ctx context.Context, cl client.Client, name string) error {

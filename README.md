@@ -20,9 +20,9 @@ import kcp "github.com/ntnn/kcp-testcontainer"
 kcpc, err := kcp.Run(ctx, "ghcr.io/kcp-dev/kcp:latest")
 
 // create workspaces (parents included)
-err = kcpc.CreateWorkspace(ctx, "root:my:workspace")
-// create workspace with generated names (parents included)
-path, err := kcpc.CreateWorkspaceGenerateName(ctx, "root", "test-")
+path, err := kcpc.CreateWorkspace(ctx, "root:my:workspace")
+// create workspace with generated name (parents included)
+path, err = kcpc.CreateWorkspace(ctx, "root:test-")
 
 // rest.Config for a workspace
 cfg, err := kcpc.RESTConfig(ctx, "root:my:workspace")

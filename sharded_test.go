@@ -2,8 +2,10 @@ package kcp
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"io"
+	"math/big"
 	"net/http"
 	"testing"
 	"time"
@@ -82,11 +84,34 @@ func TestSharded(t *testing.T) {
 		require.Len(t, shards.Items, 2)
 	})
 
+	t.Run("create workspace scheduled to "+AliasShard1, func(t *testing.T) {
+		t.Parallel()
+
+		_, err := instance.CreateWorkspace(ctx, "root:pinned", WithShard(AliasShard1))
+		require.NoError(t, err)
+
+		cl, err := instance.Client(ctx, "root", client.Options{Scheme: tenancyScheme()})
+		require.NoError(t, err)
+
+		workspace := &tenancyv1alpha1.Workspace{}
+		require.NoError(t, cl.Get(ctx, client.ObjectKey{Name: "pinned"}, workspace))
+		hash := sha256.Sum224([]byte(AliasShard1))
+		require.Equal(t, new(big.Int).SetBytes(hash[:]).Text(36)[:8],
+			workspace.Annotations["internal.tenancy.kcp.io/shard"],
+			"workspace must be scheduled to %s", AliasShard1)
+
+		pinned, err := instance.Client(ctx, "root:pinned", client.Options{Scheme: tenancyScheme()})
+		require.NoError(t, err)
+		require.NoError(t, pinned.List(ctx, &tenancyv1alpha1.WorkspaceList{}))
+	})
+
 	t.Run("create nested workspace and get client by path", func(t *testing.T) {
 		t.Parallel()
 
-		require.NoError(t, instance.CreateWorkspace(ctx, "root:my-org:team"))
-		require.NoError(t, instance.CreateWorkspace(ctx, "root:my-org:team"))
+		_, err := instance.CreateWorkspace(ctx, "root:my-org:team")
+		require.NoError(t, err)
+		_, err = instance.CreateWorkspace(ctx, "root:my-org:team")
+		require.NoError(t, err)
 
 		cl, err := instance.Client(ctx, "root:my-org", client.Options{Scheme: tenancyScheme()})
 		require.NoError(t, err)
@@ -100,7 +125,7 @@ func TestSharded(t *testing.T) {
 	t.Run("create workspace with generate name", func(t *testing.T) {
 		t.Parallel()
 
-		path, err := instance.CreateWorkspaceGenerateName(ctx, "root", "gen-")
+		path, err := instance.CreateWorkspace(ctx, "root:gen-")
 		require.NoError(t, err)
 		require.Regexp(t, `^root:gen-.+`, path)
 
@@ -112,7 +137,7 @@ func TestSharded(t *testing.T) {
 	t.Run("create workspace with generate name with parents", func(t *testing.T) {
 		t.Parallel()
 
-		path, err := instance.CreateWorkspaceGenerateName(ctx, "root:with:parents", "gen-")
+		path, err := instance.CreateWorkspace(ctx, "root:with:parents:gen-")
 		require.NoError(t, err)
 		require.Regexp(t, `^root:with:parents:gen-.+`, path)
 
@@ -145,11 +170,13 @@ func TestShardedVirtualWorkspace(t *testing.T) {
 	})
 
 	t.Log("creating provider and consumer workspaces")
-	require.NoError(t, instance.CreateWorkspace(ctx, "root:provider"))
+	_, err = instance.CreateWorkspace(ctx, "root:provider")
+	require.NoError(t, err)
 	providerClient, err := instance.Client(ctx, "root:provider", client.Options{Scheme: tenancyScheme()})
 	require.NoError(t, err)
 
-	require.NoError(t, instance.CreateWorkspace(ctx, "root:consumer"))
+	_, err = instance.CreateWorkspace(ctx, "root:consumer")
+	require.NoError(t, err)
 	consumerClient, err := instance.Client(ctx, "root:consumer", client.Options{Scheme: tenancyScheme()})
 	require.NoError(t, err)
 

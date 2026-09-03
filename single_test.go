@@ -85,8 +85,10 @@ func TestSingle(t *testing.T) {
 	t.Run("create nested workspace and get client by path", func(t *testing.T) {
 		t.Parallel()
 
-		require.NoError(t, container.CreateWorkspace(ctx, "root:my-org:team"))
-		require.NoError(t, container.CreateWorkspace(ctx, "root:my-org:team"))
+		_, err := container.CreateWorkspace(ctx, "root:my-org:team")
+		require.NoError(t, err)
+		_, err = container.CreateWorkspace(ctx, "root:my-org:team")
+		require.NoError(t, err)
 
 		cl, err := container.Client(ctx, "root:my-org", client.Options{Scheme: tenancyScheme()})
 		require.NoError(t, err)
@@ -100,7 +102,7 @@ func TestSingle(t *testing.T) {
 	t.Run("create workspace with generate name", func(t *testing.T) {
 		t.Parallel()
 
-		path, err := container.CreateWorkspaceGenerateName(ctx, "root", "gen-")
+		path, err := container.CreateWorkspace(ctx, "root:gen-")
 		require.NoError(t, err)
 		require.Regexp(t, `^root:gen-.+`, path)
 
@@ -112,7 +114,7 @@ func TestSingle(t *testing.T) {
 	t.Run("create workspace with generate name with parents", func(t *testing.T) {
 		t.Parallel()
 
-		path, err := container.CreateWorkspaceGenerateName(ctx, "root:with:parents", "gen-")
+		path, err := container.CreateWorkspace(ctx, "root:with:parents:gen-")
 		require.NoError(t, err)
 		require.Regexp(t, `^root:with:parents:gen-.+`, path)
 
