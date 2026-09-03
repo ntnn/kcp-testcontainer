@@ -1,33 +1,29 @@
 # kcp-testcontainer
 
-[testcontainers-go](https://golang.testcontainers.org/) module running a
-[kcp](https://kcp.io) server for tests.
+[testcontainers-go](https://golang.testcontainers.org/) module running a [kcp](https://kcp.io) server for tests.
 
-This only provide a _single_ kcp instance, as in a single kcp root
-shard. There is no front-proxy, no sharding, no external cache server.
+Two modes are supported. `Single` and `Sharded`.
 
-As such this is only a cheap way to get multiple control planes to test components
-that touch multiple control planes.
+`Single` is a single kcp shard and a great way to get cheap control planes.
 
-To build components against actual kcp infrastructure, such as operators
-handling APIExports and -Bindings, use [envtest.Sharded](https://pkg.go.dev/github.com/kcp-dev/multicluster-provider@main/envtest#Sharded) instead.
+`Sharded` is a full setup with a front-proxy, two shards and a cache-server and a great way to test kcp-native operators.
 
 ## Usage
 
 ```go
-import kcp "github.com/ntnn/kcp-testcontainer"
+import kcptc "github.com/ntnn/kcp-testcontainer"
 
-kcpc, err := kcp.Run(ctx, "ghcr.io/kcp-dev/kcp:latest")
+single, err := kcptc.Single(ctx, kcptc.DefaultImage)
 
 // create workspaces (parents included)
-path, err := kcpc.CreateWorkspace(ctx, "root:my:workspace")
+path, err := single.CreateWorkspace(ctx, "root:my:workspace")
 // create workspace with generated name (parents included)
-path, err = kcpc.CreateWorkspace(ctx, "root:test-")
+path, err = single.CreateWorkspace(ctx, "root:test-")
 
 // rest.Config for a workspace
-cfg, err := kcpc.RESTConfig(ctx, "root:my:workspace")
+cfg, err := single.RESTConfig(ctx, "root:my:workspace")
 // controller-runtime client for a workspace
-cl, err := kcpc.Client(ctx, "root:my:workspace", client.Options{})
+cl, err := single.Client(ctx, "root:my:workspace", client.Options{})
 ```
 
 ## Why not envtest?
