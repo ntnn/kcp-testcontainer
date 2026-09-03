@@ -1,6 +1,7 @@
 package kcp
 
 import (
+	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	corev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -12,5 +13,6 @@ func tenancyScheme() *runtime.Scheme {
 	s := runtime.NewScheme()
 	utilruntime.Must(tenancyv1alpha1.AddToScheme(s))
 	utilruntime.Must(corev1alpha1.AddToScheme(s))
+	utilruntime.Must(apisv1alpha1.AddToScheme(s))
 	return s
 }
