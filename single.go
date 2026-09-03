@@ -41,14 +41,6 @@ type SingleInstance struct {
 	testcontainers.Container
 }
 
-// Small helper only used internally to constructo ctrl-runtime clients
-// with the kcp tenancy API in the scheme to create workspaces.
-func tenancyScheme() *runtime.Scheme {
-	s := runtime.NewScheme()
-	utilruntime.Must(tenancyv1alpha1.AddToScheme(s))
-	return s
-}
-
 // Single starts a single root-shard kcp container.
 func Single(ctx context.Context, img string, opts ...testcontainers.ContainerCustomizer) (*SingleInstance, error) {
 	if img == "" {
