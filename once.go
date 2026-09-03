@@ -20,3 +20,17 @@ func SingleOnce(ctx context.Context, img string, opts ...testcontainers.Containe
 	})
 	return singleOnceInst, errSingleOnce
 }
+
+var (
+	shardedOnce     sync.Once
+	errShardedOnce  error
+	shardedOnceInst *ShardedInstance
+)
+
+// ShardedOnce is like [Sharded] but always returns the same [ShardedInstance].
+func ShardedOnce(ctx context.Context, img string, opts ...ShardedOption) (*ShardedInstance, error) {
+	shardedOnce.Do(func() {
+		shardedOnceInst, errShardedOnce = Sharded(ctx, img, opts...)
+	})
+	return shardedOnceInst, errShardedOnce
+}
