@@ -179,9 +179,23 @@ func (in *instance) createChildWorkspace(ctx context.Context, parent, name strin
 		return "", fmt.Errorf("creating workspace object: %w", err)
 	}
 
+	// Wait for workspace to be ready.
 	if err := waitReady(ctx, cl, workspace.Name); err != nil {
 		return "", err
 	}
+
+	// Wait for workspace's logical cluster to serve APIs.
+	child, err := in.Client(ctx, parent+":"+workspace.Name, client.Options{Scheme: tenancyScheme()})
+	if err != nil {
+		return "", err
+	}
+
+	if err := wait.PollUntilContextTimeout(ctx, tickInterval, pollTimeout, true, func(ctx context.Context) (bool, error) {
+		return child.List(ctx, &tenancyv1alpha1.WorkspaceList{}) == nil, nil
+	}); err != nil {
+		return "", fmt.Errorf("waiting for workspace %q to serve APIs: %w", workspace.Name, err)
+	}
+
 	return workspace.Name, nil
 }
 
