@@ -10,8 +10,29 @@ Two modes are supported. `Single` and `Sharded`.
 
 ## Usage
 
+Import this module:
+
 ```go
 import kcptc "github.com/ntnn/kcp-testcontainer"
+```
+
+<!--
+```go ci
+package kcp_test
+
+import  (
+	"context"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	kcptc "github.com/ntnn/kcp-testcontainer"
+)
+
+var _ = func(ctx context.Context) {
+```
+-->
+
+Create an instance, either `Single`, `Sharded`, `SingleOnce` or `ShardedOnce` and create workspaces:
+
+```go ci
 
 single, err := kcptc.Single(ctx, kcptc.DefaultImage)
 
@@ -25,6 +46,17 @@ cfg, err := single.RESTConfig(ctx, "root:my:workspace")
 // controller-runtime client for a workspace
 cl, err := single.Client(ctx, "root:my:workspace", client.Options{})
 ```
+
+<!--
+```go ci
+    // prevent `go vet` from erroring on unused variabled
+    _ = path
+    _ = err
+    _ = cfg
+    _ = cl
+}
+```
+-->
 
 ## Why not envtest?
 
