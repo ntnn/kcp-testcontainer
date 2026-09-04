@@ -162,25 +162,26 @@ func TestShardedVirtualWorkspace(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	t.Log("starting sharded kcp instance")
+	t.Log("Starting sharded kcp instance")
 	instance, err := Sharded(ctx, "")
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, instance.Terminate(context.WithoutCancel(ctx)))
 	})
 
-	t.Log("creating provider and consumer workspaces")
-	_, err = instance.CreateWorkspace(ctx, "root:provider")
+	t.Log("Creating provider workspace")
+	_, err = instance.CreateWorkspace(ctx, "root:provider", WithShard(AliasShard0))
 	require.NoError(t, err)
 	providerClient, err := instance.Client(ctx, "root:provider", client.Options{Scheme: tenancyScheme()})
 	require.NoError(t, err)
 
-	_, err = instance.CreateWorkspace(ctx, "root:consumer")
+	t.Log("Creating consumer workspace")
+	_, err = instance.CreateWorkspace(ctx, "root:consumer", WithShard(AliasShard1))
 	require.NoError(t, err)
 	consumerClient, err := instance.Client(ctx, "root:consumer", client.Options{Scheme: tenancyScheme()})
 	require.NoError(t, err)
 
-	t.Log("creating APIResourceSchema in root:provider")
+	t.Log("Creating APIResourceSchema in root:provider")
 	sheriffs := &apisv1alpha1.APIResourceSchema{
 		ObjectMeta: metav1.ObjectMeta{Name: "v1.sheriffs.wildwest.dev"},
 		Spec: apisv1alpha1.APIResourceSchemaSpec{
@@ -202,7 +203,7 @@ func TestShardedVirtualWorkspace(t *testing.T) {
 	}
 	require.NoError(t, providerClient.Create(ctx, sheriffs))
 
-	t.Log("creating APIExport in root:provider")
+	t.Log("Creating APIExport in root:provider")
 	export := &apisv1alpha1.APIExport{
 		ObjectMeta: metav1.ObjectMeta{Name: "wildwest.dev"},
 		Spec: apisv1alpha1.APIExportSpec{
@@ -211,7 +212,7 @@ func TestShardedVirtualWorkspace(t *testing.T) {
 	}
 	require.NoError(t, providerClient.Create(ctx, export))
 
-	t.Log("creating APIBinding in root:consumer")
+	t.Log("Creating APIBinding in root:consumer")
 	binding := &apisv1alpha1.APIBinding{
 		ObjectMeta: metav1.ObjectMeta{Name: "wildwest.dev"},
 		Spec: apisv1alpha1.APIBindingSpec{
@@ -227,21 +228,21 @@ func TestShardedVirtualWorkspace(t *testing.T) {
 		assert.NoError(c, consumerClient.Create(ctx, binding.DeepCopy()))
 	}, time.Minute, 500*time.Millisecond, "APIBinding must be created")
 
-	t.Log("waiting for APIBinding to become bound")
+	t.Log("Waiting for APIBinding to become bound")
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		current := &apisv1alpha1.APIBinding{}
 		require.NoError(c, consumerClient.Get(ctx, client.ObjectKey{Name: "wildwest.dev"}, current))
 		assert.Equal(c, apisv1alpha1.APIBindingPhaseBound, current.Status.Phase)
 	}, time.Minute, 500*time.Millisecond, "APIBinding must become bound")
 
-	t.Log("creating Sheriff in root:consumer")
+	t.Log("Creating Sheriff in root:consumer")
 	sheriff := &unstructured.Unstructured{}
 	sheriff.SetGroupVersionKind(schema.GroupVersionKind{Group: "wildwest.dev", Version: "v1alpha1", Kind: "Sheriff"})
 	sheriff.SetName("woody")
 	require.NoError(t, consumerClient.Create(ctx, sheriff))
 
 	vwURL := ""
-	t.Log("waiting for the APIExportEndpointSlice to publish the virtual workspace URL")
+	t.Log("Waiting for the APIExportEndpointSlice to publish the virtual workspace URL")
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		slice := &apisv1alpha1.APIExportEndpointSlice{}
 		require.NoError(c, providerClient.Get(ctx, client.ObjectKey{Name: "wildwest.dev"}, slice))
@@ -251,7 +252,7 @@ func TestShardedVirtualWorkspace(t *testing.T) {
 
 	external, err := instance.ExternalURL(ctx, vwURL)
 	require.NoError(t, err)
-	t.Logf("virtual workspace URL %s mapped to %s", vwURL, external)
+	t.Logf("Virtual workspace URL %s mapped to %s", vwURL, external)
 
 	kubeconfig, err := instance.Kubeconfig(ctx)
 	require.NoError(t, err)
@@ -265,7 +266,7 @@ func TestShardedVirtualWorkspace(t *testing.T) {
 	vwClient, err := client.New(config, client.Options{Scheme: tenancyScheme()})
 	require.NoError(t, err)
 
-	t.Log("listing sheriffs through the virtual workspace")
+	t.Log("Listing sheriffs through the virtual workspace")
 	sheriffsList := &unstructured.UnstructuredList{}
 	sheriffsList.SetGroupVersionKind(schema.GroupVersionKind{Group: "wildwest.dev", Version: "v1alpha1", Kind: "SheriffList"})
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
