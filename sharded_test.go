@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"net/http"
 	"testing"
-	"time"
 
 	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	corev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
@@ -226,14 +225,14 @@ func TestShardedVirtualWorkspace(t *testing.T) {
 	}
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.NoError(c, consumerClient.Create(ctx, binding.DeepCopy()))
-	}, time.Minute, 500*time.Millisecond, "APIBinding must be created")
+	}, pollTimeout, tickInterval, "APIBinding must be created")
 
 	t.Log("Waiting for APIBinding to become bound")
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		current := &apisv1alpha1.APIBinding{}
 		require.NoError(c, consumerClient.Get(ctx, client.ObjectKey{Name: "wildwest.dev"}, current))
 		assert.Equal(c, apisv1alpha1.APIBindingPhaseBound, current.Status.Phase)
-	}, time.Minute, 500*time.Millisecond, "APIBinding must become bound")
+	}, pollTimeout, tickInterval, "APIBinding must become bound")
 
 	t.Log("Creating Sheriff in root:consumer")
 	sheriff := &unstructured.Unstructured{}
@@ -248,7 +247,7 @@ func TestShardedVirtualWorkspace(t *testing.T) {
 		require.NoError(c, providerClient.Get(ctx, client.ObjectKey{Name: "wildwest.dev"}, slice))
 		require.NotEmpty(c, slice.Status.APIExportEndpoints)
 		vwURL = slice.Status.APIExportEndpoints[0].URL
-	}, time.Minute, 500*time.Millisecond, "APIExportEndpointSlice must publish a virtual workspace URL")
+	}, pollTimeout, tickInterval, "APIExportEndpointSlice must publish a virtual workspace URL")
 
 	external, err := instance.ExternalURL(ctx, vwURL)
 	require.NoError(t, err)
@@ -272,6 +271,6 @@ func TestShardedVirtualWorkspace(t *testing.T) {
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		require.NoError(c, vwClient.List(ctx, sheriffsList))
 		assert.Len(c, sheriffsList.Items, 1)
-	}, time.Minute, 500*time.Millisecond, "sheriff must be visible through the virtual workspace")
+	}, pollTimeout, tickInterval, "sheriff must be visible through the virtual workspace")
 	require.Equal(t, "woody", sheriffsList.Items[0].GetName())
 }

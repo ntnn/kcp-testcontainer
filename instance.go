@@ -21,6 +21,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	pollTimeout  = time.Minute
+	tickInterval = 100 * time.Millisecond
+)
+
 // helper to extract the admin kubeconfig.
 func kubeconfig(ctx context.Context, container testcontainers.Container) ([]byte, error) {
 	reader, err := container.CopyFileFromContainer(ctx, kubeconfigPath)
