@@ -21,7 +21,7 @@ const (
 )
 
 // DefaultImage is the image kcp-testcontainer uses when an empty string is passed.
-const DefaultImage = "ghcr.io/kcp-dev/kcp:v0.32.3"
+const DefaultImage = "ghcr.io/kcp-dev/kcp:v0.33.1"
 
 // SingleInstance is a running a single kcp root shard.
 type SingleInstance struct {
