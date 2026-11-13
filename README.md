@@ -1,5 +1,9 @@
 # kcp-testcontainer
 
+> [!WARNING]
+> This has been migrated to the kcp-dev org:
+> https://github.com/kcp-dev/kcp-testcontainers
+
 [testcontainers-go](https://golang.testcontainers.org/) module running a [kcp](https://kcp.io) server for tests.
 
 Two modes are supported. `Single` and `Sharded`.
